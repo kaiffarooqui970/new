@@ -434,3 +434,39 @@ button[data-testid="button-copy"]:hover {
   box-shadow: 0 0 6px hsl(185 90% 60% / 0.8);
   animation: cursor-blink 0.75s ease-in-out infinite;
 }
+
+/* ============================================================
+   REDUCED MOTION — respect user OS preference
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  html.dark body,
+  body {
+    animation: none !important;
+    background-position: 0% 50%;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .shimmer-btn {
+    background-position: 0% center !important;
+    transition: none !important;
+  }
+
+  .shimmer-btn:hover:not(:disabled) {
+    background-position: 0% center !important;
+  }
+
+  .typing-cursor {
+    animation: none !important;
+    opacity: 1;
+  }
+}

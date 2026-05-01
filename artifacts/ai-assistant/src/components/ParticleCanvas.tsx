@@ -44,19 +44,29 @@ export default function ParticleCanvas() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let animId: number;
+    let animId: number | null = null;
     let particles: Particle[] = [];
+
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     };
 
-    const init = () => {
-      resize();
-      particles = Array.from({ length: PARTICLE_COUNT }, () =>
-        createParticle(canvas.width, canvas.height)
-      );
+    const renderStatic = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const p of particles) {
+        const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius * 3.5);
+        gradient.addColorStop(0, `hsla(${p.hue}, ${p.saturation}%, ${p.lightness}%, ${p.alpha})`);
+        gradient.addColorStop(0.5, `hsla(${p.hue}, ${p.saturation}%, ${p.lightness}%, ${p.alpha * 0.35})`);
+        gradient.addColorStop(1, `hsla(${p.hue}, ${p.saturation}%, ${p.lightness}%, 0)`);
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius * 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+      }
     };
 
     const draw = () => {
@@ -89,20 +99,55 @@ export default function ParticleCanvas() {
       animId = requestAnimationFrame(draw);
     };
 
-    const onResize = () => {
-      resize();
+    const stopLoop = () => {
+      if (animId !== null) {
+        cancelAnimationFrame(animId);
+        animId = null;
+      }
+    };
+
+    const seedParticles = () => {
       particles = Array.from({ length: PARTICLE_COUNT }, () =>
         createParticle(canvas.width, canvas.height)
       );
     };
 
-    init();
-    draw();
+    const start = () => {
+      stopLoop();
+      resize();
+      seedParticles();
+      if (motionQuery.matches) {
+        renderStatic();
+      } else {
+        draw();
+      }
+    };
+
+    const onResize = () => {
+      resize();
+      seedParticles();
+      if (motionQuery.matches) {
+        renderStatic();
+      }
+    };
+
+    const onMotionChange = () => {
+      stopLoop();
+      if (motionQuery.matches) {
+        renderStatic();
+      } else {
+        draw();
+      }
+    };
+
+    start();
 
     window.addEventListener("resize", onResize);
+    motionQuery.addEventListener("change", onMotionChange);
     return () => {
-      cancelAnimationFrame(animId);
+      stopLoop();
       window.removeEventListener("resize", onResize);
+      motionQuery.removeEventListener("change", onMotionChange);
     };
   }, []);
 
