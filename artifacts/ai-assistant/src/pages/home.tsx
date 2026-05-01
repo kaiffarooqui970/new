@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import { useGenerate } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,25 +8,32 @@ import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import ParticleCanvas from "@/components/ParticleCanvas";
+import { useStreamingGenerate } from "@/hooks/useStreamingGenerate";
 
 export default function Home() {
   const [mode, setMode] = useState<"writing" | "coding">("writing");
   const [prompt, setPrompt] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const generate = useGenerate();
+  const { text, status, mode: responseMode, generate, reset } = useStreamingGenerate();
+
+  const isStreaming = status === "streaming";
+  const isDone = status === "done";
+  const isError = status === "error";
+  const hasOutput = isStreaming || isDone || isError;
 
   const handleGenerate = () => {
-    if (!prompt.trim()) return;
-    generate.mutate({ data: { prompt, mode } });
+    if (!prompt.trim() || isStreaming) return;
+    reset();
+    generate(prompt, mode);
   };
 
   const handleCopy = useCallback(() => {
-    if (!generate.data?.result) return;
-    navigator.clipboard.writeText(generate.data.result);
+    if (!text) return;
+    navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }, [generate.data?.result]);
+  }, [text]);
 
   return (
     <div
@@ -179,7 +185,7 @@ export default function Home() {
           >
             <Button
               onClick={handleGenerate}
-              disabled={!prompt.trim() || generate.isPending}
+              disabled={!prompt.trim() || isStreaming}
               data-testid="button-generate"
               className="shimmer-btn"
               style={{
@@ -193,11 +199,11 @@ export default function Home() {
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                cursor: generate.isPending || !prompt.trim() ? "not-allowed" : "pointer",
+                cursor: isStreaming || !prompt.trim() ? "not-allowed" : "pointer",
                 transition: "box-shadow 0.25s ease, transform 0.2s ease",
               }}
             >
-              {generate.isPending ? (
+              {isStreaming ? (
                 <>
                   <div
                     className="animate-spin"
@@ -222,7 +228,7 @@ export default function Home() {
         </div>
 
         {/* ── Output Panel ── */}
-        {(generate.data || generate.isPending || generate.isError) && (
+        {hasOutput && (
           <div
             className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-3"
           >
@@ -249,8 +255,8 @@ export default function Home() {
                 position: "relative",
               }}
             >
-              {/* Loading state */}
-              {generate.isPending && (
+              {/* Loading state — only shown before any text arrives */}
+              {isStreaming && !text && (
                 <div
                   data-testid="status-loading"
                   style={{ padding: "1.75rem", display: "flex", flexDirection: "column", gap: "14px" }}
@@ -271,7 +277,7 @@ export default function Home() {
               )}
 
               {/* Error state */}
-              {generate.isError && (
+              {isError && (
                 <div
                   data-testid="status-error"
                   style={{
@@ -290,74 +296,106 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Response content */}
-              {generate.data && (
+              {/* Streaming / done content */}
+              {(isStreaming || isDone) && text && (
                 <div
                   className="group"
                   data-testid="response-content"
                   style={{ position: "relative" }}
                 >
-                  {/* Copy button */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "16px",
-                      right: "16px",
-                      zIndex: 10,
-                      opacity: 0,
-                      transition: "opacity 0.2s ease",
-                    }}
-                    className="group-hover:opacity-100"
-                  >
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={handleCopy}
-                      data-testid="button-copy"
+                  {/* Copy button — only visible after generation completes */}
+                  {isDone && (
+                    <div
                       style={{
-                        background: "rgba(255,255,255,0.08)",
-                        backdropFilter: "blur(12px)",
-                        WebkitBackdropFilter: "blur(12px)",
-                        border: "1px solid rgba(255,255,255,0.15)",
-                        borderRadius: "9999px",
-                        padding: "5px 14px",
-                        fontSize: "0.8rem",
-                        color: copied ? "hsl(145 70% 55%)" : "hsl(195 80% 85%)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        cursor: "pointer",
+                        position: "absolute",
+                        top: "16px",
+                        right: "16px",
+                        zIndex: 10,
+                        opacity: 0,
+                        transition: "opacity 0.2s ease",
                       }}
+                      className="group-hover:opacity-100"
                     >
-                      {copied
-                        ? <><Check style={{ width: "13px", height: "13px" }} /> Copied</>
-                        : <><Copy style={{ width: "13px", height: "13px" }} /> Copy</>
-                      }
-                    </Button>
-                  </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleCopy}
+                        data-testid="button-copy"
+                        style={{
+                          background: "rgba(255,255,255,0.08)",
+                          backdropFilter: "blur(12px)",
+                          WebkitBackdropFilter: "blur(12px)",
+                          border: "1px solid rgba(255,255,255,0.15)",
+                          borderRadius: "9999px",
+                          padding: "5px 14px",
+                          fontSize: "0.8rem",
+                          color: copied ? "hsl(145 70% 55%)" : "hsl(195 80% 85%)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {copied
+                          ? <><Check style={{ width: "13px", height: "13px" }} /> Copied</>
+                          : <><Copy style={{ width: "13px", height: "13px" }} /> Copy</>
+                        }
+                      </Button>
+                    </div>
+                  )}
 
                   <div
                     className="prose prose-slate max-w-none dark:prose-invert prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent"
                     style={{ padding: "1.75rem" }}
                   >
-                    {mode === "coding" ? (
-                      <SyntaxHighlighter
-                        language="javascript"
-                        style={vscDarkPlus}
-                        customStyle={{
-                          margin: 0,
-                          padding: "1.5rem",
-                          borderRadius: "0.75rem",
-                          background: "rgba(0,0,0,0.35)",
-                          fontSize: "0.875rem",
+                    {responseMode === "coding" ? (
+                      isDone ? (
+                        <SyntaxHighlighter
+                          language="javascript"
+                          style={vscDarkPlus}
+                          customStyle={{
+                            margin: 0,
+                            padding: "1.5rem",
+                            borderRadius: "0.75rem",
+                            background: "rgba(0,0,0,0.35)",
+                            fontSize: "0.875rem",
+                          }}
+                        >
+                          {text}
+                        </SyntaxHighlighter>
+                      ) : (
+                        <pre
+                          style={{
+                            margin: 0,
+                            padding: "1.5rem",
+                            borderRadius: "0.75rem",
+                            background: "rgba(0,0,0,0.35)",
+                            fontSize: "0.875rem",
+                            color: "hsl(195 80% 88%)",
+                            fontFamily: "monospace",
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {text}
+                          <span className="typing-cursor" />
+                        </pre>
+                      )
+                    ) : isDone ? (
+                      <ReactMarkdown>{text}</ReactMarkdown>
+                    ) : (
+                      <div
+                        style={{
+                          color: "hsl(195 80% 88%)",
+                          fontSize: "0.975rem",
+                          lineHeight: "1.7",
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
                         }}
                       >
-                        {generate.data.result}
-                      </SyntaxHighlighter>
-                    ) : (
-                      <ReactMarkdown>
-                        {generate.data.result}
-                      </ReactMarkdown>
+                        {text}
+                        <span className="typing-cursor" />
+                      </div>
                     )}
                   </div>
                 </div>

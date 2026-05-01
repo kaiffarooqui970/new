@@ -416,3 +416,21 @@ button[data-testid="button-generate"]:active:not(:disabled) {
 button[data-testid="button-copy"]:hover {
   box-shadow: 0 0 10px hsl(185 90% 50% / 0.3);
 }
+
+/* Typing cursor blink */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  background: hsl(185 90% 60%);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  box-shadow: 0 0 6px hsl(185 90% 60% / 0.8);
+  animation: cursor-blink 0.75s ease-in-out infinite;
+}
