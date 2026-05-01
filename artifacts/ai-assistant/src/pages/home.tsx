@@ -8,6 +8,7 @@ import { PenTool, Code2, Sparkles, Copy, Check, AlertTriangle } from "lucide-rea
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import ParticleCanvas from "@/components/ParticleCanvas";
 
 export default function Home() {
   const [mode, setMode] = useState<"writing" | "coding">("writing");
@@ -31,7 +32,7 @@ export default function Home() {
   return (
     <div
       className="min-h-[100dvh] w-full flex flex-col items-center py-14 px-4 sm:px-6 lg:px-8"
-      style={{ fontFamily: "'Inter', sans-serif" }}
+      style={{ fontFamily: "'Inter', sans-serif", position: "relative", zIndex: 1 }}
     >
       <div className="w-full max-w-3xl space-y-8">
 
@@ -365,6 +366,9 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Particle canvas overlay */}
+      <ParticleCanvas />
 
       {/* Ambient orbs for depth */}
       <div
