@@ -14,3 +14,19 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Generate a response from AI for writing or coding mode
+ * @summary Generate AI response
+ */
+export const GenerateBody = zod.object({
+  prompt: zod.string().describe("The user's input prompt"),
+  mode: zod
+    .enum(["writing", "coding"])
+    .describe("The mode for the AI response"),
+});
+
+export const GenerateResponse = zod.object({
+  result: zod.string().describe("The AI generated response"),
+  mode: zod.enum(["writing", "coding"]),
+});

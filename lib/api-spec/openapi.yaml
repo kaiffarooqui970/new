@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: generate
+    description: AI generation operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /generate:
+    post:
+      operationId: generate
+      tags: [generate]
+      summary: Generate AI response
+      description: Generate a response from AI for writing or coding mode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateRequest"
+      responses:
+        "200":
+          description: AI generated response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +66,35 @@ components:
           type: string
       required:
         - status
-
+    GenerateRequest:
+      type: object
+      properties:
+        prompt:
+          type: string
+          description: The user's input prompt
+        mode:
+          type: string
+          enum: [writing, coding]
+          description: The mode for the AI response
+      required:
+        - prompt
+        - mode
+    GenerateResult:
+      type: object
+      properties:
+        result:
+          type: string
+          description: The AI generated response
+        mode:
+          type: string
+          enum: [writing, coding]
+      required:
+        - result
+        - mode
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

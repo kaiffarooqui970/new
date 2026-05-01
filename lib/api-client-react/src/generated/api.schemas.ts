@@ -8,3 +8,39 @@
 export interface HealthStatus {
   status: string;
 }
+
+/**
+ * The mode for the AI response
+ */
+export type GenerateRequestMode =
+  (typeof GenerateRequestMode)[keyof typeof GenerateRequestMode];
+
+export const GenerateRequestMode = {
+  writing: "writing",
+  coding: "coding",
+} as const;
+
+export interface GenerateRequest {
+  /** The user's input prompt */
+  prompt: string;
+  /** The mode for the AI response */
+  mode: GenerateRequestMode;
+}
+
+export type GenerateResultMode =
+  (typeof GenerateResultMode)[keyof typeof GenerateResultMode];
+
+export const GenerateResultMode = {
+  writing: "writing",
+  coding: "coding",
+} as const;
+
+export interface GenerateResult {
+  /** The AI generated response */
+  result: string;
+  mode: GenerateResultMode;
+}
+
+export interface ErrorResponse {
+  error: string;
+}
