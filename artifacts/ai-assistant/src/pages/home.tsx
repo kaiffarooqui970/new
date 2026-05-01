@@ -51,7 +51,7 @@ export default function Home() {
               textShadow: "none",
             }}
           >
-            Clarity
+            Oryon
           </h1>
           {/* Neon accent underline */}
           <div
