@@ -5,6 +5,10 @@ interface Particle {
   y: number;
   vx: number;
   vy: number;
+  baseVx: number;
+  baseVy: number;
+  pullVx: number;
+  pullVy: number;
   radius: number;
   alpha: number;
   alphaDir: number;
@@ -15,11 +19,17 @@ interface Particle {
 
 function createParticle(width: number, height: number): Particle {
   const isPurple = Math.random() < 0.5;
+  const baseVx = (Math.random() - 0.5) * 0.25;
+  const baseVy = (Math.random() - 0.5) * 0.25;
   return {
     x: Math.random() * width,
     y: Math.random() * height,
-    vx: (Math.random() - 0.5) * 0.25,
-    vy: (Math.random() - 0.5) * 0.25,
+    vx: baseVx,
+    vy: baseVy,
+    baseVx,
+    baseVy,
+    pullVx: 0,
+    pullVy: 0,
     radius: Math.random() * 1.8 + 0.6,
     alpha: Math.random() * 0.5 + 0.1,
     alphaDir: Math.random() < 0.5 ? 1 : -1,
@@ -33,6 +43,10 @@ const PARTICLE_COUNT = 90;
 const ALPHA_SPEED = 0.003;
 const ALPHA_MIN = 0.05;
 const ALPHA_MAX = 0.65;
+const MOUSE_INFLUENCE_RADIUS = 220;
+const MOUSE_ATTRACTION_STRENGTH = 0.022;
+const MAX_PULL_SPEED = 0.7;
+const PULL_DAMPING = 0.96;
 
 export default function ParticleCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -46,6 +60,9 @@ export default function ParticleCanvas() {
 
     let animId: number | null = null;
     let particles: Particle[] = [];
+    let mouseX = 0;
+    let mouseY = 0;
+    let mouseActive = false;
 
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -73,6 +90,32 @@ export default function ParticleCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       for (const p of particles) {
+        if (mouseActive) {
+          const dx = mouseX - p.x;
+          const dy = mouseY - p.y;
+          const distSq = dx * dx + dy * dy;
+          if (distSq < MOUSE_INFLUENCE_RADIUS * MOUSE_INFLUENCE_RADIUS && distSq > 0.0001) {
+            const dist = Math.sqrt(distSq);
+            const falloff = 1 - dist / MOUSE_INFLUENCE_RADIUS;
+            const force = MOUSE_ATTRACTION_STRENGTH * falloff * falloff;
+            p.pullVx += (dx / dist) * force;
+            p.pullVy += (dy / dist) * force;
+          }
+        }
+
+        const pullSpeedSq = p.pullVx * p.pullVx + p.pullVy * p.pullVy;
+        if (pullSpeedSq > MAX_PULL_SPEED * MAX_PULL_SPEED) {
+          const pullSpeed = Math.sqrt(pullSpeedSq);
+          p.pullVx = (p.pullVx / pullSpeed) * MAX_PULL_SPEED;
+          p.pullVy = (p.pullVy / pullSpeed) * MAX_PULL_SPEED;
+        }
+
+        p.pullVx *= PULL_DAMPING;
+        p.pullVy *= PULL_DAMPING;
+
+        p.vx = p.baseVx + p.pullVx;
+        p.vy = p.baseVy + p.pullVy;
+
         p.x += p.vx;
         p.y += p.vy;
 
@@ -140,13 +183,36 @@ export default function ParticleCanvas() {
       }
     };
 
+    const onPointerMove = (e: PointerEvent) => {
+      if (motionQuery.matches) return;
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      mouseActive = true;
+    };
+
+    const onPointerLeave = (e: PointerEvent) => {
+      if (e.relatedTarget === null) {
+        mouseActive = false;
+      }
+    };
+
+    const onWindowBlur = () => {
+      mouseActive = false;
+    };
+
     start();
 
     window.addEventListener("resize", onResize);
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    document.addEventListener("pointerleave", onPointerLeave);
+    window.addEventListener("blur", onWindowBlur);
     motionQuery.addEventListener("change", onMotionChange);
     return () => {
       stopLoop();
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerleave", onPointerLeave);
+      window.removeEventListener("blur", onWindowBlur);
       motionQuery.removeEventListener("change", onMotionChange);
     };
   }, []);
